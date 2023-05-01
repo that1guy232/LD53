@@ -4,6 +4,7 @@ import math
 
 DEBUG = False
 
+
 class Collider:
     def __init__(self, x, y, width, height):
         self.x = x
@@ -26,14 +27,14 @@ class Collider:
 
 
 class CollectionZone:
-    def __init__(self, x ,y):
+    def __init__(self, x, y):
         self.sprite = pygame.image.load("collection_zone.png")
         # scale the sprite
-        #self.sprite = pygame.transform.scale(self.sprite, (100, 100))
+        # self.sprite = pygame.transform.scale(self.sprite, (100, 100))
         self.x = x
         self.y = y
 
-        self.width =self.sprite.get_width()
+        self.width = self.sprite.get_width()
         self.height = self.sprite.get_height()
 
         self.collider = Collider(self.x, self.y, self.width, self.height)
@@ -44,20 +45,21 @@ class CollectionZone:
         if DEBUG:
             self.collider.render(rendered_screen, camera)
         rendered_screen.blit(self.sprite, (draw_x, draw_y))
+
     pass
+
 
 class Collectable:
     def __init__(self, x, y, width=32, height=32):
         self.x = x
         self.y = y
         self.old_y = y
-        # self.y_velocity = 0
         self.sprite = pygame.image.load("collect.png")
         self.width = width
         self.height = height
         self.velocity = pygame.math.Vector2(0, 0)
         self.connected_to = None
-        self.ground_friction = 0.01
+        self.ground_friction = 0.002
 
         # Add a grounded state and a gravity acceleration
         self.grounded = False
@@ -65,54 +67,55 @@ class Collectable:
 
     def render(self, rendered_screen, camera):
         draw_x, draw_y = camera.apply_camera_transform(self)
-        # Use a gold color for the circle (R, G, B)
         gold_color = (255, 215, 0)
-
-        # Draw the circle
         pygame.draw.circle(
             rendered_screen,
             gold_color,
             (int(draw_x + self.width / 2), int(draw_y + self.height / 2)),
             int(min(self.width, self.height) / 2),
         )
-
-        # draw the sprite
         rendered_screen.blit(self.sprite, (draw_x, draw_y))
 
     def update(self, delta_time):
-        # Apply gravity
-        # if we are not grounded, apply gravity
-       # print(self.velocity.x)
-
         if not self.grounded:
             self.velocity.y = min(self.velocity.y, 1)
-            # Update position
             self.y += self.velocity.y * delta_time
-        
-        # if we are grounded are y velocity is 0
+
         if self.grounded:
             self.velocity.y = 0
-        
+
         self.x += self.velocity.x * delta_time
+
         # friction to the x velocity
-        self.velocity.x -= self.velocity.x * self.ground_friction
-        # move are self's down just a little bit so we can check if we are grounded
+        self.velocity.x -= self.velocity.x * self.ground_friction * delta_time
+
+        # if are velocity is less than 0.01, set it to 0
+        if abs(self.velocity.x) < 0.05:
+            self.velocity.x = 0
+
         self.velocity.y += self.gravity * delta_time
-        # if we are moving down, we are not grounded
         if self.velocity.y > 0:
             self.grounded = False
-        
-        print(self.velocity.y)
 
-
-        # if we are connected to something, move with it
         if self.connected_to:
             self.x = self.connected_to.x
             self.y = self.connected_to.y
-            # If we are connected to something, we are no longer grounded
+            self.x += 0 - self.width / 2
             self.grounded = False
 
-        pass
+        # if are velocity is less than 0.01, set it to 0
+        if abs(self.velocity.x) < 0.05:
+            self.velocity.x = 0
+
+        self.velocity.y += self.gravity * delta_time
+        if self.velocity.y > 0:
+            self.grounded = False
+
+        if self.connected_to:
+            self.x = self.connected_to.x
+            self.y = self.connected_to.y
+            self.x += 0 - self.width / 2
+            self.grounded = False
 
 
 class Camera:
@@ -143,7 +146,6 @@ class Camera:
         return obj_x, obj_y
 
     pass
-
 
 
 class Ground:
@@ -387,7 +389,7 @@ class Player:
         # w and s to control vertical movement
         if keys[pygame.K_w]:
             self.velocity.y -= self.movement_speed * delta_time
-            #print(self.velocity.y)
+            # print(self.velocity.y)
             if self.grounded:
                 self.grounded = False
                 self.velocity.x = 0
@@ -438,6 +440,37 @@ class Player:
             self.time_since_last_attach_detach = 0
         pass
 
+class Cloud:
+    def __init__(self, x, y,spr = random.randint(1, 3)):
+        self.x = x
+        self.y = y
+        self.spr = spr
+
+        # scale from .5 to 3x the original size
+        self.scale = random.uniform(0.5, 3)
+
+
+        self.sprite = pygame.image.load("cloud_" + str(self.spr) + ".png")
+
+        # scale the sprite
+        self.sprite = pygame.transform.scale(
+            self.sprite,
+            (
+                int(self.sprite.get_width() * self.scale),
+                int(self.sprite.get_height() * self.scale),
+            ),
+        )
+        
+        self.width = self.sprite.get_width()
+        self.height = self.sprite.get_height()
+
+    # render the cloud
+    def render(self, rendered_screen, camera):
+        # apply the camera transform
+        draw_x, draw_y = camera.apply_camera_transform(self)
+        # draw the cloud
+        rendered_screen.blit(self.sprite, (draw_x, draw_y))
+    pass
 
 class Game:
     def __init__(self):
@@ -448,6 +481,11 @@ class Game:
 
         # create a clock object
         self.clock = pygame.time.Clock()
+
+        # 10 clouds in a grid
+        self.clouds = []
+        for i in range(40):
+            self.clouds.append(Cloud(random.randint(-800*4, 1600*4), random.randint(-600*4, 1200*4), random.randint(1, 3)))
 
         # set the running variable to True
         self.running = True
@@ -470,7 +508,7 @@ class Game:
         self.player_rope = Rope(self.player, 4, 10)
 
         # collection zone
-        self.collection_zone = CollectionZone(0,0)
+        self.collection_zone = CollectionZone(0, 0)
 
     #     # call the main loop function
     #     self.main_loop()
@@ -527,12 +565,18 @@ class Game:
 
                 # check for collisions between the player rope and the collectables
                 if self.check_collision(self.player_rope.collider, self.collectable):
-                    #print("player rope collided with collectable")
+                    # print("player rope collided with collectable")
                     # allow the player to pick up the collectable
                     self.player.on_over_collectable(self.collectable, self.player_rope)
                     self.player.trying_to_attach = False
                     pass
-
+                
+                # check for collisions between the collection zone and the collectables
+                if self.check_collision(self.collection_zone, self.collectable):
+                    print("collectable in collection zone")
+                    # allow the player to pick up the collectable
+                    # self.player.on_over_collectable(self.collectable, self.player_rope)
+                    # self.player.trying_to_attach = False
         pass
 
     def check_collision(self, obj1, obj2):
@@ -547,7 +591,12 @@ class Game:
 
     def render(self):
         # clear the screen
-        self.rendered_screen.fill((0, 0, 0))
+        self.rendered_screen.fill((125, 200, 255))
+
+        # render the clouds
+        for self.cloud in self.clouds:
+            self.cloud.render(self.rendered_screen, self.camera)
+
 
         # render the player
         self.player.render(self.rendered_screen, self.camera)
@@ -563,6 +612,9 @@ class Game:
 
         # render the collection zone
         self.collection_zone.render(self.rendered_screen, self.camera)
+
+
+
 
         pass
 
