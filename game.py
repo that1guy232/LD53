@@ -1,17 +1,63 @@
 import pygame
 import random
 import math
-import asyncio
+
+DEBUG = False
+
+class Collider:
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+
+    def render(self, rendered_screen, camera):
+        draw_x, draw_y = camera.apply_camera_transform(self)
+
+        # draw the collider
+        pygame.draw.rect(
+            rendered_screen, (255, 0, 0), (draw_x, draw_y, self.width, self.height)
+        )
+
+    def update(self):
+        pass
+
+    pass
+
+
+class CollectionZone:
+    def __init__(self, x ,y):
+        self.sprite = pygame.image.load("collection_zone.png")
+        # scale the sprite
+        #self.sprite = pygame.transform.scale(self.sprite, (100, 100))
+        self.x = x
+        self.y = y
+
+        self.width =self.sprite.get_width()
+        self.height = self.sprite.get_height()
+
+        self.collider = Collider(self.x, self.y, self.width, self.height)
+
+    def render(self, rendered_screen, camera):
+        draw_x, draw_y = camera.apply_camera_transform(self)
+        # render the collider
+        if DEBUG:
+            self.collider.render(rendered_screen, camera)
+        rendered_screen.blit(self.sprite, (draw_x, draw_y))
+    pass
+
 class Collectable:
     def __init__(self, x, y, width=32, height=32):
         self.x = x
         self.y = y
+        self.old_y = y
         # self.y_velocity = 0
         self.sprite = pygame.image.load("collect.png")
         self.width = width
         self.height = height
         self.velocity = pygame.math.Vector2(0, 0)
         self.connected_to = None
+        self.ground_friction = 0.01
 
         # Add a grounded state and a gravity acceleration
         self.grounded = False
@@ -36,20 +82,35 @@ class Collectable:
     def update(self, delta_time):
         # Apply gravity
         # if we are not grounded, apply gravity
+       # print(self.velocity.x)
+
         if not self.grounded:
-            # self.y_velocity += self.gravity * delta_time
-            self.velocity.y += self.gravity * delta_time
-
-            # limit the y velocity to 1
             self.velocity.y = min(self.velocity.y, 1)
-
             # Update position
             self.y += self.velocity.y * delta_time
+        
+        # if we are grounded are y velocity is 0
+        if self.grounded:
+            self.velocity.y = 0
+        
+        self.x += self.velocity.x * delta_time
+        # friction to the x velocity
+        self.velocity.x -= self.velocity.x * self.ground_friction
+        # move are self's down just a little bit so we can check if we are grounded
+        self.velocity.y += self.gravity * delta_time
+        # if we are moving down, we are not grounded
+        if self.velocity.y > 0:
+            self.grounded = False
+        
+        print(self.velocity.y)
+
 
         # if we are connected to something, move with it
         if self.connected_to:
             self.x = self.connected_to.x
             self.y = self.connected_to.y
+            # If we are connected to something, we are no longer grounded
+            self.grounded = False
 
         pass
 
@@ -83,26 +144,6 @@ class Camera:
 
     pass
 
-
-class Collider:
-    def __init__(self, x, y, width, height):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-
-    def render(self, rendered_screen, camera):
-        draw_x, draw_y = camera.apply_camera_transform(self)
-
-        # draw the collider
-        pygame.draw.rect(
-            rendered_screen, (255, 0, 0), (draw_x, draw_y, self.width, self.height)
-        )
-
-    def update(self):
-        pass
-
-    pass
 
 
 class Ground:
@@ -232,7 +273,8 @@ class Rope:
         draw_x, draw_y = camera.apply_camera_transform(self)
 
         # draw the rope collider wire frame
-        self.collider.render(rendered_screen, camera)
+        if DEBUG:
+            self.collider.render(rendered_screen, camera)
 
         # draw the rope segments
         for segment in self.rope_segments:
@@ -265,9 +307,8 @@ class Rope:
 
         pass
 
-
     def attach_collectable(self, collectable):
-        collectable.connected_to = self.rope_segments[-1] 
+        collectable.connected_to = self.rope_segments[-1]
         pass
 
     def check_collision(self, obj):
@@ -293,8 +334,6 @@ class Player:
         self.wind = 0.0000
         self.friction = 0.000
         self.movement_speed = 0.0007
-
-
 
         self.velocity = pygame.math.Vector2(0, 0)
         self.grounded = False
@@ -339,9 +378,8 @@ class Player:
             self.x += self.velocity.x * delta_time
             self.y += self.velocity.y * delta_time
 
-         # Update the timer for attach/detach actions
+        # Update the timer for attach/detach actions
         self.time_since_last_attach_detach += delta_time
-        
 
     def handle_events(self, delta_time):
         keys = pygame.key.get_pressed()
@@ -349,7 +387,7 @@ class Player:
         # w and s to control vertical movement
         if keys[pygame.K_w]:
             self.velocity.y -= self.movement_speed * delta_time
-            print(self.velocity.y)
+            #print(self.velocity.y)
             if self.grounded:
                 self.grounded = False
                 self.velocity.x = 0
@@ -365,7 +403,10 @@ class Player:
             self.velocity.x += self.movement_speed * delta_time
 
         # if the E key is pressed and enough time has passed since the last attach/detach action
-        if keys[pygame.K_e] and self.time_since_last_attach_detach >= self.attach_detach_cooldown:
+        if (
+            keys[pygame.K_e]
+            and self.time_since_last_attach_detach >= self.attach_detach_cooldown
+        ):
             # if the player is not already trying to attach a collectable to the rope
             if not self.trying_to_attach:
                 # set the trying_to_attach variable to True
@@ -397,6 +438,7 @@ class Player:
             self.time_since_last_attach_detach = 0
         pass
 
+
 class Game:
     def __init__(self):
         # create a screen object
@@ -426,6 +468,9 @@ class Game:
         self.grounds = [self.ground]
 
         self.player_rope = Rope(self.player, 4, 10)
+
+        # collection zone
+        self.collection_zone = CollectionZone(0,0)
 
     #     # call the main loop function
     #     self.main_loop()
@@ -482,7 +527,7 @@ class Game:
 
                 # check for collisions between the player rope and the collectables
                 if self.check_collision(self.player_rope.collider, self.collectable):
-                    print("player rope collided with collectable")
+                    #print("player rope collided with collectable")
                     # allow the player to pick up the collectable
                     self.player.on_over_collectable(self.collectable, self.player_rope)
                     self.player.trying_to_attach = False
@@ -515,6 +560,9 @@ class Game:
         # render the ground
         for self.ground in self.grounds:
             self.ground.render(self.rendered_screen, self.camera)
+
+        # render the collection zone
+        self.collection_zone.render(self.rendered_screen, self.camera)
 
         pass
 
