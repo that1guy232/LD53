@@ -63,7 +63,7 @@ class Collectable:
 
         # Add a grounded state and a gravity acceleration
         self.grounded = False
-        self.gravity = 0.008
+        self.gravity = 0.00005
 
     def render(self, rendered_screen, camera):
         draw_x, draw_y = camera.apply_camera_transform(self)
@@ -127,12 +127,23 @@ class Camera:
         self.width = 800
         self.height = 600
 
+        # lerp speed (between 0 and 1)
+        self.lerp_speed = 0.25
+
         self.anchor = anchor
+
+    def lerp(self, start, end, speed):
+        return start + (end - start) * speed
 
     def update(self):
         # update the camera position based on the anchor
-        self.x = self.anchor.x - self.width / 2
-        self.y = self.anchor.y - self.height / 2
+
+        target_x = self.anchor.x - self.width / 2
+        target_y = self.anchor.y - self.height / 2
+        # apply the lerp function to smoothly move the camera
+        self.x = self.lerp(self.x, target_x, self.lerp_speed)
+        self.y = self.lerp(self.y, target_y, self.lerp_speed)
+
         pass
 
     def apply_camera_transform(self, object):
@@ -148,10 +159,59 @@ class Camera:
     pass
 
 
+class Compass:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.original_sprite = pygame.image.load("arrow.png")
+        self.sprite = self.original_sprite.copy()
+        self.width = self.sprite.get_width()
+        self.height = self.sprite.get_height()
+
+    def render(self, rendered_screen, camera):
+        draw_x, draw_y = (
+            self.x,
+            self.y,
+        )
+        rendered_screen.blit(self.sprite, (draw_x, draw_y))
+
+        # pygame.draw.circle(
+        #     rendered_screen,
+        #     (255, 255, 255),
+        #     (draw_x + self.width // 2, draw_y + self.height // 2),
+        #     50,
+        #     1,
+        # )
+
+    def update(self, delta_time, player, collectables):
+        closest_collectable = None
+        closest_distance = float("inf")
+        for collectable in collectables:
+            distance = math.sqrt(
+                (player.x - collectable.x) ** 2 + (player.y - collectable.y) ** 2
+            )
+            if distance < closest_distance:
+                closest_collectable = collectable
+                closest_distance = distance
+
+        if closest_collectable:
+            angle = math.atan2(
+                player.y - closest_collectable.y, player.x - closest_collectable.x
+            )
+
+            # Rotate the sprite and adjust the anchor point
+            self.sprite = pygame.transform.rotate(
+                self.original_sprite, -math.degrees(angle) + 90
+            )
+            self.sprite.get_rect(
+                center=self.original_sprite.get_rect(topleft=(self.x, self.y)).center
+            )
+
+
 class Ground:
     # ground will have a x,y, width, and height.
     # this will be a rectangle and will only be used to stop the player from falling
-    def __init__(self, x=0, y=550, width=800, height=50):
+    def __init__(self, x=-10, y=550, width=120, height=50):
         # position
         self.x = x
         self.y = y
@@ -344,6 +404,7 @@ class Player:
         self.trying_to_attach = False
         self.attach_detach_cooldown = 500  # in milliseconds
         self.time_since_last_attach_detach = 0  # in milliseconds
+        self.connected_collectable = False
 
     # render the player
     def render(self, rendered_screen, camera):
@@ -416,12 +477,21 @@ class Player:
         else:
             self.trying_to_attach = False
 
+        # if the r key is pressed reset the player position
+        if keys[pygame.K_r]:
+            self.x = 300
+            self.y = 350
+            self.velocity.x = 0
+            self.velocity.y = 0
+            self.grounded = False
+
     def on_over_collectable(self, collectable, rope):
         # if the player has pressed the button to pick up the collectable
         if self.trying_to_attach:
             # If we are already attached to a collectable
             if collectable.connected_to:
                 # detach the collectable from the rope
+                self.connected_collectable = False
                 collectable.connected_to = None
                 # set the collectable to not grounded
                 collectable.grounded = False
@@ -432,6 +502,7 @@ class Player:
             else:
                 # attach the collectable to the rope
                 rope.attach_collectable(collectable)
+                self.connected_collectable = True
                 # set the trying_to_attach variable to False
                 self.trying_to_attach = False
                 print("attached")
@@ -440,15 +511,16 @@ class Player:
             self.time_since_last_attach_detach = 0
         pass
 
+
 class Cloud:
-    def __init__(self, x, y,spr = random.randint(1, 3)):
+    def __init__(self, x, y, spr=random.randint(1, 3), rotation=0):
         self.x = x
         self.y = y
         self.spr = spr
+        self.rotation = rotation
 
         # scale from .5 to 3x the original size
         self.scale = random.uniform(0.5, 3)
-
 
         self.sprite = pygame.image.load("cloud_" + str(self.spr) + ".png")
 
@@ -460,7 +532,9 @@ class Cloud:
                 int(self.sprite.get_height() * self.scale),
             ),
         )
-        
+        # rotate the sprite
+        self.sprite = pygame.transform.rotate(self.sprite, self.rotation)
+
         self.width = self.sprite.get_width()
         self.height = self.sprite.get_height()
 
@@ -470,7 +544,9 @@ class Cloud:
         draw_x, draw_y = camera.apply_camera_transform(self)
         # draw the cloud
         rendered_screen.blit(self.sprite, (draw_x, draw_y))
+
     pass
+
 
 class Game:
     def __init__(self):
@@ -478,14 +554,27 @@ class Game:
         self.screen = pygame.display.set_mode((800, 600))
         # set the title of the window
         pygame.display.set_caption("My Game")
+        self.font = pygame.font.SysFont("Arial", 30)
 
         # create a clock object
         self.clock = pygame.time.Clock()
 
+        self.score = 0
+        self.score_multiplier = 1
+        self.last_score_time = 0
+
         # 10 clouds in a grid
         self.clouds = []
         for i in range(40):
-            self.clouds.append(Cloud(random.randint(-800*4, 1600*4), random.randint(-600*4, 1200*4), random.randint(1, 3)))
+            self.clouds.append(
+                Cloud(
+                    random.randint(-800 * 4, 1600 * 4),
+                    random.randint(-600 * 4, 1200 * 4),
+                    random.randint(1, 3),
+                    # random rotation
+                    random.randint(0, 360),
+                )
+            )
 
         # set the running variable to True
         self.running = True
@@ -498,17 +587,41 @@ class Game:
 
         self.camera = Camera(self.player)
 
+        # compass
+        self.compass = Compass(30, 20)
+
         self.collectables = []
         # add 1 collectable
         self.collectables.append(Collectable(200, 200))
 
         # a list of all grounds, so we can loop through them and deal with them all at once
         self.grounds = [self.ground]
+        # collection zone
+        self.collection_zone = CollectionZone(0, 450)
+        # while we have less than x grounds
+        while len(self.grounds) < 25:
+            # create a new ground
+            new_ground = Ground(
+                random.randint(-800 * 4, 1600 * 4),
+                random.randint(0, 600 * 4),
+                random.randint(100, 400),
+                random.randint(100, 400),
+            )
+            # add it to the list of grounds
+            self.grounds.append(new_ground)
+            # does it collide with any other grounds? or the collection zone?
+            for ground in self.grounds:
+                if new_ground != ground:
+                    if self.check_collision(new_ground, ground):
+                        # remove the ground
+                        self.grounds.remove(new_ground)
+                        break
+                    if self.check_collision(new_ground, self.collection_zone):
+                        self.grounds.remove(new_ground)
+
+                        break
 
         self.player_rope = Rope(self.player, 4, 10)
-
-        # collection zone
-        self.collection_zone = CollectionZone(0, 0)
 
     #     # call the main loop function
     #     self.main_loop()
@@ -531,8 +644,43 @@ class Game:
     #         # draw
     #         self.draw()
 
+    def collision_response(self, ground, player):
+        # Calculate the collision depth on each axis
+        depth_x = min(
+            ground.x + ground.width - player.x,
+            player.x + player.width - ground.x,
+        )
+        depth_y = min(
+            ground.y + ground.height - player.y,
+            player.y + player.height - ground.y,
+        )
+
+        # Resolve the collision based on the smallest depth
+        if depth_x < depth_y:
+            if player.x + player.width / 2 < ground.x + ground.width / 2:
+                player.x -= depth_x
+            else:
+                player.x += depth_x
+            player.velocity.x *= -1  # Reverse the x-velocity
+        else:
+            if player.y + player.height / 2 < ground.y + ground.height / 2:
+                player.y -= depth_y
+                player.velocity.y = 0
+                player.grounded = True
+            else:
+                player.y += depth_y
+                player.velocity.y = 0
+
     def update(self):
-        # update the player
+        # print the player time in min and seconds, get the time in ms from self.clock.get_time()
+
+        # if we took longer than 10 seconds sense are last score, reset the multiplier to 1
+        # print(pygame.time.get_ticks() - self.last_score_time)
+        rest_time = 10000
+        if pygame.time.get_ticks() - self.last_score_time > rest_time:
+            # print("reset")
+            self.score_multiplier = 1
+
         self.player.update(self.clock.get_time())
 
         self.player_rope.update(self.clock.get_time())
@@ -545,16 +693,18 @@ class Game:
         self.camera.update()
 
         # check for collisions between the player and the ground
-
         for self.ground in self.grounds:
-            # if the player is not grounded, check for collisions between the ground and the player
-            if not self.player.grounded:
-                if self.check_collision(self.ground, self.player):
-                    self.player.y = self.ground.y - self.player.height
-                    # set all velocity to 0
-                    self.player.velocity.x = 0
-                    self.player.velocity.y = 0
-                    self.player.grounded = True
+            if self.check_collision(self.ground, self.player):
+                self.collision_response(self.ground, self.player)
+            # if we have less than 10 collectables, add another one
+            if len(self.collectables) < 20:
+                # 2 screen width on either side of the player
+                r_x = random.randint(-800 * 4, 1600 * 4)
+                # the screen height is 600, so we want the collectable to be above the screen se get a positive random number from 600 to 4 times the screen height, than we flip so it's at the top of the screen
+                r_y = -random.randint(600, 600 * 4)
+                # flip the y position so it's above the screen
+                r_y = r_y
+                self.collectables.append(Collectable(r_x, r_y))
 
             # check for collisions between the ground and the collectables
             for self.collectable in self.collectables:
@@ -563,6 +713,9 @@ class Game:
                     self.collectable.y_velocity = 0
                     self.collectable.grounded = True
 
+                # if the collectable's y position way below the ground, delete it
+                if self.collectable.y > self.screen.get_height() * 4:
+                    self.collectables.remove(self.collectable)
                 # check for collisions between the player rope and the collectables
                 if self.check_collision(self.player_rope.collider, self.collectable):
                     # print("player rope collided with collectable")
@@ -570,13 +723,35 @@ class Game:
                     self.player.on_over_collectable(self.collectable, self.player_rope)
                     self.player.trying_to_attach = False
                     pass
-                
+
                 # check for collisions between the collection zone and the collectables
                 if self.check_collision(self.collection_zone, self.collectable):
                     print("collectable in collection zone")
+                    # remove the collectable
+                    self.collectables.remove(self.collectable)
+                    # make sure if it's connected to the player, it's not anymore
+                    if self.player.connected_collectable:
+                        self.player.connected_collectable = False
+
+                        # set are last score time because we just scored!
+                        self.last_score_time = pygame.time.get_ticks()
+                        # increase the score
+                        self.score += 1 * self.score_multiplier
+                        # increase the score multiplier
+                        self.score_multiplier += 0.25
+
                     # allow the player to pick up the collectable
                     # self.player.on_over_collectable(self.collectable, self.player_rope)
                     # self.player.trying_to_attach = False
+
+        # update the compass
+        # if the rope is not attached to anything, update the compass
+        if not self.player.connected_collectable:
+            self.compass.update(self.clock.get_time(), self.player, self.collectables)
+        else:  # point towards the collection zone
+            self.compass.update(
+                self.clock.get_time(), self.player, [self.collection_zone]
+            )
         pass
 
     def check_collision(self, obj1, obj2):
@@ -597,7 +772,6 @@ class Game:
         for self.cloud in self.clouds:
             self.cloud.render(self.rendered_screen, self.camera)
 
-
         # render the player
         self.player.render(self.rendered_screen, self.camera)
         self.player_rope.render(self.rendered_screen, self.camera)
@@ -613,8 +787,39 @@ class Game:
         # render the collection zone
         self.collection_zone.render(self.rendered_screen, self.camera)
 
+        self.compass.render(self.rendered_screen, self.camera)
 
+        time_ms = pygame.time.get_ticks()
 
+        time_seconds = int(time_ms / 1000)
+        # how long in minutes
+        time_minutes = int(time_ms / 1000 / 60)
+
+        # render the time the player has been playing at the top of the screen (00:00)
+        self.rendered_screen.blit(
+            self.font.render(
+                str(time_minutes).zfill(2) + ":" + str(time_seconds % 60).zfill(2),
+                True,
+                (0, 0, 0),
+            ),
+            (self.screen.get_width() / 2 - 20, 10),
+        )
+
+        # render the score to the left of the screen
+        self.rendered_screen.blit(
+            self.font.render("Score: " + str(self.score), True, (0, 0, 0)),
+            (10, 10),
+        )
+
+        # render the score multi next to the score
+        # print(self.score_multiplier)
+        r = self.font.render("x" + str(self.score_multiplier), True, (0, 0, 0))
+        # scale it down
+        r = pygame.transform.scale(r, (int(r.get_width() / 2), int(r.get_height() / 2)))
+        self.rendered_screen.blit(
+            r,
+            (10 + self.font.size("Score: " + str(self.score))[0], 6),
+        )
 
         pass
 
