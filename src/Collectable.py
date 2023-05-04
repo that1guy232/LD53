@@ -1,4 +1,6 @@
 import pygame
+
+
 class Collectable:
     def __init__(self, x, y, width=32, height=32):
         self.x = x

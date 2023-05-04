@@ -1,5 +1,7 @@
 from Collider import Collider
 import pygame
+
+
 class CollectionZone:
     def __init__(self, x, y):
         self.sprite = pygame.image.load("assets/collection_zone.png")

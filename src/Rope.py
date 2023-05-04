@@ -1,5 +1,7 @@
 from RopeSegment import RopeSegment
 from Collider import Collider
+
+
 class Rope:
     # rope will have a x, y, and length.
     # This will be a line that will be made up of segments
@@ -37,7 +39,6 @@ class Rope:
     def render(self, rendered_screen, camera):
         # apply the camera transform
         draw_x, draw_y = camera.apply_camera_transform(self)
-
 
         # draw the rope segments
         for segment in self.rope_segments:

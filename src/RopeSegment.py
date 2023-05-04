@@ -1,6 +1,7 @@
 import pygame
 import math
 
+
 class RopeSegment:
     # rope segment will have a x, y, and length.
     # This will be a line that will be made up of segments
