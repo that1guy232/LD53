@@ -1,7 +1,10 @@
 import pygame
 
+<<<<<<< HEAD
 from Collider import Collider
 
+=======
+>>>>>>> 0c69e3ee2c2ee237562533e9393ad796a243ffb2
 
 class CollectionZone:
     def __init__(self, x, y):

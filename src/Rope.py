@@ -1,5 +1,10 @@
 from Collider import Collider
+<<<<<<< HEAD
 from RopeSegment import RopeSegment
+=======
+
+
+>>>>>>> 0c69e3ee2c2ee237562533e9393ad796a243ffb2
 class Rope:
     # rope will have a x, y, and length.
     # This will be a line that will be made up of segments
