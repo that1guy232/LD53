@@ -23,6 +23,9 @@ async def main():
         game.render()
         game.draw()
 
+        # set the title of the window to are fps
+        pygame.display.set_caption(f"FPS: {game.clock.get_fps():.2f}")
+
         await asyncio.sleep(0)
 
 

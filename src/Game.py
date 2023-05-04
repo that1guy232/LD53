@@ -63,7 +63,7 @@ class Game:
         # collection zone
         self.collection_zone = CollectionZone(0, 450)
         # while we have less than x grounds
-        while len(self.grounds) < 25:
+        while len(self.grounds) < 100:
             # create a new ground
             new_ground = Ground(
                 random.randint(-800 * 4, 1600 * 4),
@@ -108,6 +108,7 @@ class Game:
     #         # draw
     #         self.draw()
 
+    # player collision response
     def collision_response(self, ground, player):
         # Calculate the collision depth on each axis
         depth_x = min(
@@ -125,7 +126,7 @@ class Game:
                 player.x -= depth_x
             else:
                 player.x += depth_x
-            player.velocity.x *= -1  # Reverse the x-velocity
+            player.velocity.x *= -0.4  # Reverse the x-velocity
         else:
             if player.y + player.height / 2 < ground.y + ground.height / 2:
                 player.y -= depth_y
@@ -161,7 +162,7 @@ class Game:
             if self.check_collision(self.ground, self.player):
                 self.collision_response(self.ground, self.player)
             # if we have less than 10 collectables, add another one
-            if len(self.collectables) < 20:
+            if len(self.collectables) < 30:
                 # 2 screen width on either side of the player
                 r_x = random.randint(-800 * 4, 1600 * 4)
                 # the screen height is 600, so we want the collectable to be above the screen se get a positive random number from 600 to 4 times the screen height, than we flip so it's at the top of the screen
