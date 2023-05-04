@@ -1,5 +1,8 @@
-from Collider import Collider
 import pygame
+
+from Collider import Collider
+
+
 class CollectionZone:
     def __init__(self, x, y):
         self.sprite = pygame.image.load("assets/collection_zone.png")
@@ -15,7 +18,6 @@ class CollectionZone:
 
     def render(self, rendered_screen, camera):
         draw_x, draw_y = camera.apply_camera_transform(self)
-        # render the collider
 
         rendered_screen.blit(self.sprite, (draw_x, draw_y))
 

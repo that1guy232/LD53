@@ -563,8 +563,6 @@ class Game:
         self.score_multiplier = 1
         self.last_score_time = 0
 
-
-
         # 10 clouds in a grid
         self.clouds = []
         for i in range(40):
@@ -822,7 +820,6 @@ class Game:
             r,
             (10 + self.font.size("Score: " + str(self.score))[0], 6),
         )
-
 
         pass
 

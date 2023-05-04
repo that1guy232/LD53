@@ -1,5 +1,6 @@
 import pygame
 import math
+
 class Compass:
     def __init__(self, x, y):
         self.x = x

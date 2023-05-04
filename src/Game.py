@@ -1,15 +1,17 @@
-from CollectionZone import CollectionZone
-from Camera import Camera
-from Collectable import Collectable
-from Player import Player
-from Ground import Ground
-from Cloud import Cloud
 from Compass import Compass
+from Collectable import Collectable
+from Cloud import Cloud
+from Ground import Ground
+from Camera import Camera
 from Rope import Rope
+from CollectionZone import CollectionZone
+from Player import Player
+
 
 import pygame
 import random
-import math
+
+
 class Game:
     def __init__(self):
         # create a screen object
@@ -25,7 +27,13 @@ class Game:
         self.score_multiplier = 1
         self.last_score_time = 0
 
-
+        # collect sound
+        self.collect_sound = pygame.mixer.Sound(
+            "assets/8_BIT_Pickup_BY_jalastram/SFX_Pickup_08.wav"
+        )
+        pygame.mixer.music.load("assets/DST-RAILJet-LongSeamlessLoop.ogg")
+        pygame.mixer.music.play(-1)
+        pygame.mixer.music.set_volume(0.2)
 
         # 10 clouds in a grid
         self.clouds = []
@@ -63,7 +71,7 @@ class Game:
         # collection zone
         self.collection_zone = CollectionZone(0, 450)
         # while we have less than x grounds
-        while len(self.grounds) < 25:
+        while len(self.grounds) < 50:
             # create a new ground
             new_ground = Ground(
                 random.randint(-800 * 4, 1600 * 4),
@@ -82,31 +90,14 @@ class Game:
                         break
                     if self.check_collision(new_ground, self.collection_zone):
                         self.grounds.remove(new_ground)
-
+                        break
+                    # does it collide with the player?
+                    if self.check_collision(new_ground, self.player):
+                        self.grounds.remove(new_ground)
                         break
 
         self.player_rope = Rope(self.player, 4, 10)
 
-    #     # call the main loop function
-    #     self.main_loop()
-
-    # def main_loop(self):
-    #     # main loop
-    #     while self.running:
-    #         # set the framerate
-    #         self.clock.tick(60)
-
-    #         # handle events
-    #         self.handle_events()
-
-    #         # update
-    #         self.update()
-
-    #         # render
-    #         self.render()
-
-    #         # draw
-    #         self.draw()
 
     def collision_response(self, ground, player):
         # Calculate the collision depth on each axis
@@ -191,6 +182,11 @@ class Game:
                 # check for collisions between the collection zone and the collectables
                 if self.check_collision(self.collection_zone, self.collectable):
                     print("collectable in collection zone")
+
+                    # play the collect sound
+                    self.collect_sound.play()
+                    
+
                     # remove the collectable
                     self.collectables.remove(self.collectable)
                     # make sure if it's connected to the player, it's not anymore
@@ -284,7 +280,6 @@ class Game:
             r,
             (10 + self.font.size("Score: " + str(self.score))[0], 6),
         )
-
 
         pass
 

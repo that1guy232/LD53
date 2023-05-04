@@ -1,6 +1,7 @@
 import pygame
 import random
 
+
 class Cloud:
     def __init__(self, x, y, spr=random.randint(1, 3), rotation=0):
         self.x = x
@@ -11,7 +12,7 @@ class Cloud:
         # scale from .5 to 3x the original size
         self.scale = random.uniform(0.5, 3)
 
-        self.sprite = pygame.image.load("assets\cloud_" + str(self.spr) + ".png")
+        self.sprite = pygame.image.load("assets/cloud_" + str(self.spr) + ".png")
 
         # scale the sprite
         self.sprite = pygame.transform.scale(

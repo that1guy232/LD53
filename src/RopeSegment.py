@@ -1,5 +1,5 @@
-import pygame
 import math
+import pygame
 
 class RopeSegment:
     # rope segment will have a x, y, and length.

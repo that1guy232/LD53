@@ -1,10 +1,10 @@
+
 from Game import Game
 
 import pygame
 
+import pygame
 import asyncio
-
-DEBUG = False
 
 
 # main function
@@ -12,9 +12,11 @@ async def main():
     # initialize pygame
     pygame.init()
     pygame.font.init()
+    pygame.mixer.init()
 
     # create a game object
     game = Game()
+
 
     while game.running:
         game.clock.tick(60)
@@ -24,6 +26,7 @@ async def main():
         game.draw()
 
         await asyncio.sleep(0)
+
 
 
 if __name__ == "__main__":

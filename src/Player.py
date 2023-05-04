@@ -7,7 +7,7 @@ class Player:
         self.y = 350
 
         # load the drone sprite
-        self.sprite = pygame.image.load("assets\drone.png")
+        self.sprite = pygame.image.load("assets/drone.png")
 
         self.width = self.sprite.get_width()
         self.height = self.sprite.get_height()

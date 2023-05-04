@@ -1,4 +1,5 @@
-import pygame.rect
+
+import pygame
 
 class Ground:
     # ground will have a x,y, width, and height.
